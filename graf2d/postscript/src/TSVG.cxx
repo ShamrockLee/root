@@ -40,39 +40,64 @@ ClassImp(TSVG);
 
 \brief Interface to SVG
 
-[SVG](http://www.w3.org/Graphics/SVG/Overview.htm8)
-(Scalable Vector Graphics) is a language for describing
-two-dimensional graphics in XML. SVG allows high quality vector graphics in
-HTML pages.
+[SVG](https://www.w3.org/Graphics/SVG/)
+(Scalable Vector Graphics) is a vector image format consists of a language
+for describing two-dimensional graphics in XML.
 
-To print a ROOT canvas "c1" into an SVG file simply do:
+[The SVG specification](https://www.w3.org/TR/SVG/) is an open standard
+defined and maintained by the World Wide Web Consortium (W3C).
+
+SVG allows high quality vector graphics in HTML pages and printed materials
+of arbitrary size and resolution.
+
+To print a ROOT canvas "c1" into an SVG file, simply do:
 ~~~ {.cpp}
      c1->Print("c1.svg");
 ~~~
 The result is the ASCII file `c1.svg`.
 
-It can be open directly using a web browser or included in a html document
-the following way:
-~~~ {.cpp}
-<embed width="95%" height="500" src="c1.svg">
+Most modern image viewers and browsers support displaying such an image format.
+It can be edited directly using a text editor, or with the help of a
+vector graphics editor such as Inkscape or Adobe Illustrator.
+
+As an image, it can be embedded directly into HTML:
+~~~{.html}
+<img src="c1.svg" width="95%" height="500" />
 ~~~
-It is best viewed with Internet Explorer and you need the
-[Adobe SVG Viewer](http://www.adobe.com/svg/viewer/install/main.html)
+or used as the background image in CSS:
+~~~{.css}
+.your-class {
+  background-image: url("c1.svg");
+}
+~~~
 
-To zoom using the Adobe SVG Viewer, position the mouse over
-the area you want to zoom and click the right button.
+As an XML-based language, it can be open directly using a web browser
+or included in an HTML document.
 
-To define the zoom area,
-use Control+drag to mark the boundaries of the zoom area.
+In-line SVG is also supported in HTML,
+which means that you can insert the SVG language directly
+between the `<svg></svg>` tags.
+~~~{.html}
+<svg width="200" height="200"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:ev="http://www.w3.org/2001/xml-events">
+  <circle cx= "50%" cy="50%" r="37.5%" stroke="black" scroke-width="2" fill="none" />
+  <line x1="87.5%" y1="12.5%" x2="12.5%" y2="87.5%"  stroke="black" stroke-width="2" />
+</svg>
+~~~
 
-To pan, use Alt+drag.
-By clicking with the right mouse button on the SVG graphics you will get
-a pop-up menu giving other ways to interact with the image.
+In HTML5, it can also be included using the `<embed>` tag.
+This is not part of the HTML4 specification, though supported by many browsers.
+~~~ {.html}
+<embed type="image/svg+xml" width="95%" height="500" src="c1.svg" />
+~~~
 
-SVG files can be used directly in compressed mode to minimize the time
-transfer over the network. Compressed SVG files should be created using
-`gzip` on a normal ASCII SVG file and should then be renamed
-using the file extension `.svgz`.
+SVG files can be used directly in gzip compressed mode to greatly minimize
+the transfer time over the network. The filename extension of the
+compressed SVG file should be `.svgz` instead of `.svg.gz`.
+Such file can be created by running `gzip` against a plain-text SVG file
+and rename the file extension to `.svgz`.
 */
 
 ////////////////////////////////////////////////////////////////////////////////
