@@ -232,23 +232,28 @@ void TSVG::Off()
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Fast version of Print, customised linebreak for SVG (XML)
+///
+/// See the following sections in the XML Specification to learn
+/// how XML handles new lines and white spaces:
+/// * [2.10 White Space Handling](https://www.w3.org/TR/REC-xml/#sec-white-space)
+/// * [2.11 End-of-Line Handling](https://www.w3.org/TR/REC-xml/#sec-line-ends)
 
 void TSVG::PrintFast(Int_t len, const char *str)
 {
    if (!len || !str)
       return;
-   while ((len + fLenBuffer) > fSizBuffer) {
-      Int_t nWrite = fSizBuffer;
-      Int_t crRank = 5; // linebreak priority level, the smaller the better
+   Bool_t findBreakAsap = false;
+   while ((len + fLenBuffer) > fSizBuffer || findBreakAsap) {
+      const Int_t nWriteMax = TMath::Min(fSizBuffer, len + fLenBuffer);
+      Int_t nWrite = nWriteMax;
+      constexpr Int_t crRankMax = 127; // situation when proper linebreak position found
+      Int_t crRank = crRankMax; // linebreak priority level, the smaller the better
       Bool_t drop = false;
-      Int_t iSearch = nWrite;
       Bool_t examineSpace = false;
-      char c0, c1;
-      c0 = (iSearch >= fLenBuffer) ? str[iSearch - fLenBuffer] : fBuffer[iSearch];
-      while (iSearch >= 0) {
-         c1 = c0;
-         --iSearch;
-         c0 = (iSearch >= fLenBuffer) ? str[iSearch - fLenBuffer] : fBuffer[iSearch];
+      auto funcGetCharAt = [this, &str](const Int_t i)->char {
+         return (i >= fLenBuffer) ? str[i - fLenBuffer] : fBuffer[i];
+      };
+      auto funcFindBreak = [&crRank, &drop, &examineSpace, &nWrite](const Int_t i0, const char c0, const char c1) {
          if (examineSpace) {
             if (c0 == ' ') {
                --nWrite;
@@ -258,39 +263,44 @@ void TSVG::PrintFast(Int_t len, const char *str)
          }
          // "><", The best linebreak place. Cut in the middle
          if (c0 == '>' && c1 == '<') {
-            nWrite = iSearch + 1;
+            nWrite = i0 + 1;
             crRank = 0;
-            break;
+            return;
          }
          if (crRank > 1 && c1 == '>') {
             if (c0 == '/') { // "/>", cut on the left
-               nWrite = iSearch;
+               nWrite = i0;
                examineSpace = true;
             } else if (c0 == ' ') { // " >", cut on the left and drop the whitespace
-               nWrite = iSearch;
+               nWrite = i0;
                drop = true;
             } else { // "\S>", cut in the middle
-               nWrite = iSearch + 1;
+               nWrite = i0 + 1;
             }
             crRank = 1;
          } else if (crRank > 2 && c1 == ' ') {
             // White space which isn't at the beginning of the line
             // Cut in the middle and drop the white space
-            nWrite = iSearch + 1;
+            nWrite = i0 + 1;
             drop = true;
             crRank = 2;
-         } else if (crRank > 3 && c1 == '<') {
-            // "?<", cut in the middle
-            // This might leave an additional white space
-            // at the end of a string on the image
-            nWrite = iSearch + 1;
-            crRank = 3;
-         } else if (crRank > 4 && c0 == '>') {
-            // ">\S", cut in the middle
-            // This would leave an additional white space
-            // at the beginning of a string on the imagetk
-            nWrite = iSearch + 1;
-            crRank = 4;
+         }
+      };
+      if (findBreakAsap) {
+         char c1 = fBuffer[0];
+         for (Int_t i1 = 1; i1 <= nWriteMax; ++i1) {
+            const char c0 = c1;
+            c1 = funcGetCharAt(i1);
+            funcFindBreak(i1 - 1, c0, c1);
+            if (!crRank) break;
+         }
+      } else {
+         char c0 = funcGetCharAt(fSizBuffer - 1);
+         for (Int_t i0 = nWriteMax - 1; i0 >= 0; --i0) {
+            const char c1 = c0;
+            c0 = funcGetCharAt(i0);
+            funcFindBreak(i0, c0, c1);
+            if (!crRank) break;
          }
       }
       if (nWrite >= fLenBuffer) {
@@ -316,8 +326,17 @@ void TSVG::PrintFast(Int_t len, const char *str)
             fLenBuffer -= nWrite + drop;
          }
       }
-      fStream->write("\n", 1);
-      fNByte++;
+      // Don't break line when proper location hasn't been found
+      if (crRank == crRankMax) {
+         // Force a line break searching in the next iteration
+         // even when the the buffer has enough size.
+         findBreakAsap = true;
+      } else {
+         // Insert a line break to the output file.
+         fStream->write("\n", 1);
+         fNByte++;
+         findBreakAsap = false;
+      }
    }
    if (len > 0) {
       strlcpy(fBuffer + fLenBuffer, str, len + 1);
