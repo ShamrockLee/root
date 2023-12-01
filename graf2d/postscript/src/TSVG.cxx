@@ -249,18 +249,10 @@ void TSVG::PrintFast(Int_t len, const char *str)
       constexpr Int_t crRankMax = 127; // situation when proper linebreak position found
       Int_t crRank = crRankMax; // linebreak priority level, the smaller the better
       Bool_t drop = false;
-      Bool_t examineSpace = false;
       auto funcGetCharAt = [this, &str](const Int_t i)->char {
          return (i >= fLenBuffer) ? str[i - fLenBuffer] : fBuffer[i];
       };
-      auto funcFindBreak = [&crRank, &drop, &examineSpace, &nWrite](const Int_t i0, const char c0, const char c1) {
-         if (examineSpace) {
-            if (c0 == ' ') {
-               --nWrite;
-               drop = true;
-            }
-            examineSpace = false;
-         }
+      auto funcFindBreak = [&crRank, &drop, &nWrite](const Int_t i0, const char c0, const char c1) {
          // "><", The best linebreak place. Cut in the middle
          if (c0 == '>' && c1 == '<') {
             nWrite = i0 + 1;
@@ -268,13 +260,10 @@ void TSVG::PrintFast(Int_t len, const char *str)
             return;
          }
          if (crRank > 1 && c1 == '>') {
-            if (c0 == '/') { // "/>", cut on the left
-               nWrite = i0;
-               examineSpace = true;
-            } else if (c0 == ' ') { // " >", cut on the left and drop the whitespace
+            if (c0 == ' ') { // " >", cut on the left and drop the whitespace
                nWrite = i0;
                drop = true;
-            } else { // "\S>", cut in the middle
+            } else if (c0 != '/') { // "\S>", cut in the middle
                nWrite = i0 + 1;
             }
             crRank = 1;
